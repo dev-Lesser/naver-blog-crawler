@@ -7,7 +7,7 @@ import pandas as pd
 import pymongo
 import MeCab
 import re
-from tqdm.notebook import tqdm
+from tqdm import tqdm
 from collections import Counter
 import datetime
 from secret import env
@@ -106,11 +106,10 @@ if __name__ == '__main__':
     
     for theme in tqdm(theme_list):
         collection = db[env.COLLECTION_MAIN]
-        results = list(collection.find({'theme':theme['theme']}))
+        results = list(collection.find({'theme':theme['theme'],'add_date':{'$gte':before,'$lte':now}}))
         df = pd.DataFrame(results)
         df=df[df.columns[1:]]    
-        tqdm.pandas()
-        df[['keywords','bigrams','trigrams']] = df.fillna('').progress_apply(apply_noun_ext, axis=1)
+        df[['keywords','bigrams','trigrams']] = df.fillna('').apply(apply_noun_ext, axis=1)
         c = Counter()
         c_b = Counter()
         c_t = Counter()
@@ -125,7 +124,7 @@ if __name__ == '__main__':
         keyword = [{'word':i[0],'num':i[1]} for i in c.most_common(100)]
         bigram =[{'word':i[0],'num':i[1]} for i in c_b.most_common(100)]
         trigram =[{'word':i[0],'num':i[1]} for i in c_t.most_common(100)]
-
+        now_date = datetime.datetime.now()
         result = {
             'theme':theme['theme'],
             'data':{
@@ -133,7 +132,7 @@ if __name__ == '__main__':
                 'bigram': bigram,
                 'trigram': trigram,
             },
-            'analysis_date': now.strftime('%Y-%m-%d')
+            'analysis_date': now_date
         }
         collection = db[env.COLLECTION_ANALYSIS]
         collection.insert_one(result)

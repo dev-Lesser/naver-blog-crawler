@@ -11,15 +11,15 @@ import math
 import pymongo
 import datetime
 from secret import env
-from tqdm.notebook import tqdm
-
+from tqdm import tqdm
+import time
 
 mongodb_url = env.MONGODB_URL.format(username=env.USERNAME, password=env.PASSWORD)
 client = pymongo.MongoClient(mongodb_url)
 db=client[env.DBNAME]
 
 now = datetime.datetime.now()
-before = now - datetime.timedelta(days=30)
+before = now - datetime.timedelta(days=3)
 
 def get_total_count(search_keyword,page_number,startDate,endDate):
     url = 'https://section.blog.naver.com/ajax/SearchList.naver?countPerPage=7&currentPage={page}&endDate={end_date}&keyword={keyword}&orderBy=recentdate&startDate={start_date}&type=post'            .format(keyword=search_keyword, page=page_number, start_date=startDate, end_date=endDate)
@@ -90,7 +90,7 @@ if __name__ == '__main__':
 
             # 가져온 7개의 url에 대해
             for i in range(len(url_data)):
-                (_,_,blogId,logNo)=url_data[i]
+                (_,title,blogId,logNo)=url_data[i]
                 compare = collection.find_one({'blog_id':blogId,'log_no':logNo})
                 breakpoint=False
 
@@ -103,8 +103,9 @@ if __name__ == '__main__':
                 url = 'https://blog.naver.com/PostView.naver?blogId={blogId}&logNo={logNo}&redirect=Dlog&widgetTypeCall=true&from=section&topReferer=https%3A%2F%2Fsection.blog.naver.com%2F&directAccess=false'.format(blogId=blogId, logNo=logNo)
                 res = requests.get(url)
                 root= html.fromstring(res.text.strip())
-                contents = ' '.join([i.strip() for i in root.xpath('//span[contains(@class,"se-fs-")]/text()|//span[contains(@class,"se-fs-")]/*/text()') if i.strip() not in ['','\u200b'] ])
-
+                contents = ' '.join([i.strip() for i in root.xpath('//div[@id="postViewArea"]/*/*/*/text()|//span[contains(@class,"se-fs-")]/text()|//span[contains(@class,"se-fs-")]/*/text()') if i.strip() not in ['','\u200b'] ])
+                if contents == '':
+                    contents = title # 기본적으로 못 끌어 왔을때 제목만이라도 끌어올수 있도록
                 data = {
                     'theme':theme['theme'],
                     'blog_id': blogId,
@@ -115,10 +116,10 @@ if __name__ == '__main__':
 
                 }
                 
-                if contents!='' or not compare:
+                if contents!='' and not compare:
                     results.append(data)
-            if breakpoint:
-                break
+            # if breakpoint:
+            #     break
         if results:
             collection.insert_many(results)
     print('Finished crawling \t',len(results))
