@@ -122,14 +122,17 @@ if __name__ == '__main__':
             c.update(keywords)
             c_b.update(bigrams)
             c_t.update(trigrams)
-        keywords_df = [c.most_common(300), c_b.most_common(300),c_t.most_common(300)]
-        keywords_df = pd.concat([pd.DataFrame(i) for i in keywords_df], axis=1)
-
-        keywords_df.columns=column
+        keyword = [{'word':i[0],'num':i[1]} for i in c.most_common(100)]
+        bigram =[{'word':i[0],'num':i[1]} for i in c_b.most_common(100)]
+        trigram =[{'word':i[0],'num':i[1]} for i in c_t.most_common(100)]
 
         result = {
             'theme':theme['theme'],
-            'data':keywords_df.to_dict('records'),
+            'data':{
+                'keyword': keyword,
+                'bigram': bigram,
+                'trigram': trigram,
+            },
             'analysis_date': now.strftime('%Y-%m-%d')
         }
         collection = db[env.COLLECTION_ANALYSIS]
