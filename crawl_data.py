@@ -19,7 +19,7 @@ client = pymongo.MongoClient(mongodb_url)
 db=client[env.DBNAME]
 
 now = datetime.datetime.now()
-before = now - datetime.timedelta(days=3)
+before = now - datetime.timedelta(days=2)
 
 def get_total_count(search_keyword,page_number,startDate,endDate):
     url = 'https://section.blog.naver.com/ajax/SearchList.naver?countPerPage=7&currentPage={page}&endDate={end_date}&keyword={keyword}&orderBy=recentdate&startDate={start_date}&type=post'            .format(keyword=search_keyword, page=page_number, start_date=startDate, end_date=endDate)
