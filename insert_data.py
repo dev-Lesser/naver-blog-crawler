@@ -98,15 +98,16 @@ if __name__ == '__main__':
     theme_list = list(collection.find())
     
     now = datetime.datetime.now()
-    before = now - datetime.timedelta(days=7)
-
+    set_date = datetime.datetime(now.year, now.month, now.day)
+    before = set_date - datetime.timedelta(days=7)
+    before_delete = set_date - datetime.timedelta(days=1)
     
     collection = db[env.COLLECTION_STOPWORDS]
     stopwords = get_stopwords(collection)
     
     for theme in tqdm(theme_list):
         collection = db[env.COLLECTION_MAIN]
-        results = list(collection.find({'theme':theme['theme'],'add_date':{'$gte':before,'$lte':now}}))
+        results = list(collection.find({'theme':theme['theme'],'add_date':{'$gte':before,'$lte':set_date}}))
         df = pd.DataFrame(results)
         df=df[df.columns[1:]]    
         df[['keywords','bigrams','trigrams']] = df.fillna('').apply(apply_noun_ext, axis=1)
@@ -132,9 +133,11 @@ if __name__ == '__main__':
                 'bigram': bigram,
                 'trigram': trigram,
             },
-            'analysis_date': now_date
+            'start_date':before_delete,
+            'end_date':set_date
         }
         collection = db[env.COLLECTION_ANALYSIS]
+        collection.delete_many({'theme':theme['theme'],'end_date':{'$gte':set_date}}) # 오늘 0시 기준 분석 되었던거 지우기
         collection.insert_one(result)
         print('Finished insert analysis data\t theme %s' %(theme['theme']))
 
