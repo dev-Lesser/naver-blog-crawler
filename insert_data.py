@@ -24,7 +24,12 @@ def parse_text(text):
     bucket = []
     start = 0
     pattern = re.compile(".*\t[A-Z]+") 
-    for token, pos in  [tuple(pattern.match(token).group(0).split("\t")) for token in mecab.parse(text).splitlines()[:-1]]:
+    try:
+        result = [tuple(pattern.match(token).group(0).split("\t")) for token in mecab.parse(text).splitlines()[:-1]]
+    except Exception: # 데이터가 패턴이 없을때의 에러 handler
+        print('err')
+        return [('선물','X',True,0,0)]
+    for token, pos in result:
         if start == 0:
             lspace = False
         elif text[start] == ' ':
@@ -96,50 +101,50 @@ def get_stopwords(collection):
 if __name__ == '__main__':
     collection = db[env.COLLECTION_THEME]
     theme_list = list(collection.find())
-    
-    now = datetime.datetime.now()
-    set_date = datetime.datetime(now.year, now.month, now.day)
-    before = set_date - datetime.timedelta(days=7)
-    before_delete = set_date - datetime.timedelta(days=1)
-    
-    collection = db[env.COLLECTION_STOPWORDS]
-    stopwords = get_stopwords(collection)
-    
-    for theme in tqdm(theme_list):
-        collection = db[env.COLLECTION_MAIN]
-        results = list(collection.find({'theme':theme['theme'],'add_date':{'$gte':before,'$lte':set_date}}))
-        df = pd.DataFrame(results)
-        df=df[df.columns[1:]]    
-        df[['keywords','bigrams','trigrams']] = df.fillna('').apply(apply_noun_ext, axis=1)
-        c = Counter()
-        c_b = Counter()
-        c_t = Counter()
+    for i in range(13):
+        now = datetime.datetime(2021,6,1) + datetime.timedelta(days=i)
+        set_date = datetime.datetime(now.year, now.month, now.day)
+        before = set_date - datetime.timedelta(days=7)
+        before_delete = set_date - datetime.timedelta(days=1)
+        
+        collection = db[env.COLLECTION_STOPWORDS]
+        stopwords = get_stopwords(collection)
+        
+        for theme in tqdm(theme_list):
+            collection = db[env.COLLECTION_MAIN]
+            results = list(collection.find({'theme':theme['theme'],'add_date':{'$gte':before,'$lt':set_date}}))
+            df = pd.DataFrame(results)
+            df=df[df.columns[1:]]    
+            df[['keywords','bigrams','trigrams']] = df.fillna('').apply(apply_noun_ext, axis=1)
+            c = Counter()
+            c_b = Counter()
+            c_t = Counter()
 
-        for i,row in df.iterrows():
-            keywords = row['keywords']
-            bigrams = row['bigrams']
-            trigrams = row['trigrams']
-            c.update(keywords)
-            c_b.update(bigrams)
-            c_t.update(trigrams)
-        keyword = [{'word':i[0],'num':i[1]} for i in c.most_common(100)]
-        bigram =[{'word':i[0],'num':i[1]} for i in c_b.most_common(100)]
-        trigram =[{'word':i[0],'num':i[1]} for i in c_t.most_common(100)]
-        now_date = datetime.datetime.now()
-        result = {
-            'theme':theme['theme'],
-            'data':{
-                'keyword': keyword,
-                'bigram': bigram,
-                'trigram': trigram,
-            },
-            'start_date':before_delete,
-            'end_date':set_date
-        }
-        collection = db[env.COLLECTION_ANALYSIS]
-        collection.delete_many({'theme':theme['theme'],'end_date':{'$gte':set_date}}) # 오늘 0시 기준 분석 되었던거 지우기
-        collection.insert_one(result)
-        print('Finished insert analysis data\t theme %s' %(theme['theme']))
+            for i,row in df.iterrows():
+                keywords = row['keywords']
+                bigrams = row['bigrams']
+                trigrams = row['trigrams']
+                c.update(keywords)
+                c_b.update(bigrams)
+                c_t.update(trigrams)
+            keyword = [{'word':i[0],'num':i[1]} for i in c.most_common(100)]
+            bigram =[{'word':i[0],'num':i[1]} for i in c_b.most_common(100)]
+            trigram =[{'word':i[0],'num':i[1]} for i in c_t.most_common(100)]
+            now_date = datetime.datetime.now()
+            result = {
+                'theme':theme['theme'],
+                'data':{
+                    'keyword': keyword,
+                    'bigram': bigram,
+                    'trigram': trigram,
+                },
+                'start_date':before_delete,
+                'end_date':set_date
+            }
+            collection = db[env.COLLECTION_ANALYSIS]
+            collection.delete_many({'theme':theme['theme'],'end_date':{'$gt':before_delete, '$lte':set_date}}) # 오늘 0시 기준 분석 되었던거 지우기
+            collection.insert_one(result)
+            print('Finished insert analysis data\t theme %s' %(theme['theme']))
 
 
 
