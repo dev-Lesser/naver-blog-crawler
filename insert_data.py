@@ -103,6 +103,7 @@ if __name__ == '__main__':
     theme_list = list(collection.find())
     # for i in range(14):
     now = datetime.datetime.now()
+    print(now)
     set_date = datetime.datetime(now.year, now.month, now.day)
     before = set_date - datetime.timedelta(days=7)
     before_delete = set_date - datetime.timedelta(days=1)
@@ -139,7 +140,8 @@ if __name__ == '__main__':
                 'trigram': trigram,
             },
             'start_date':before_delete,
-            'end_date':set_date
+            'end_date':set_date,
+            'proposal':False
         }
         collection = db[env.COLLECTION_ANALYSIS]
         collection.delete_many({'theme':theme['theme'],'end_date':{'$gt':before_delete, '$lte':set_date}}) # 오늘 0시 기준 분석 되었던거 지우기
